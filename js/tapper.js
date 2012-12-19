@@ -5,14 +5,13 @@ require(["dojo/ready", "dojo/dom", "dojo/on", "dojo/topic",
          "dojo/_base/window", "dojo/_base/event" ],
         function(ready, dom, on, topic, win, events){
 
-    // How large a number of taps are we averaging?
-    var COUNTS = 10;
-
     function cleanState(){
         return {
             count: 0,
             bpm: 0,
-            lastTap: 0
+            lastTap: 0,
+            bpmAcc: 0,
+            taps: []
         };
     }
 
@@ -28,12 +27,9 @@ require(["dojo/ready", "dojo/dom", "dojo/on", "dojo/topic",
         var rate = 60/((now-state.lastTap)/1000);
         state.lastTap = now;
 
-        if(state.count < COUNTS)
-            state.count++;
-
-        state.bpm = Math.round(((state.bpm*(state.count-1))+rate)/state.count);
-
-        topic.publish("tap");
+        setTimeout(function(){
+            bpmCalc(rate);
+        }, 20);
 
         clearTimeout(state.reset);
         state.reset = setTimeout(function(){
@@ -41,6 +37,15 @@ require(["dojo/ready", "dojo/dom", "dojo/on", "dojo/topic",
         }, 5000);
 
         events.stop(evt);
+    }
+
+    function bpmCalc(rate){
+        state.bpmAcc+=rate;
+        state.taps.push(rate);
+        
+        state.bpm = Math.round(state.bpmAcc/state.taps.length);
+
+        topic.publish("tap");
     }
 
     function countTap(){
@@ -61,9 +66,9 @@ require(["dojo/ready", "dojo/dom", "dojo/on", "dojo/topic",
     ready(function(){
         var tapButton = dom.byId("tapper");
 
-        on(win.body(), "touchrelease", tap);
+        on(win.body(), "touchpress", tap);
         on(win.body(), "mouseup", tap);
-        on(win.body(), "keypress", tap);
+        on(win.body(), "keydown", tap);
 
         topic.subscribe("tap", countTap);
         topic.subscribe("reset", reset);
